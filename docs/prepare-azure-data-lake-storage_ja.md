@@ -43,9 +43,9 @@ Azure CLI でもデプロイすることができます。後述の接続情報�
 Azure CLI をまだお持ちでない場合は、[こちら](https://docs.microsoft.com/ja-jp/cli/azure/install-azure-cli?view=azure-cli-latest) を参考にインストールしてください。
 
 ```bash
-RESOURCE_GROUP=playground20200414
+RESOURCE_GROUP=<Resource group name>
 LOCATION=japaneast
-CONTAINER_NAME=dev
+CONTAINER_NAME=<Container name>
 
 az group create --name $RESOURCE_GROUP --location $LOCATION
 
