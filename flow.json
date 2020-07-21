@@ -1,0 +1,421 @@
+[
+    {
+        "id": "43cbaa6a.03f564",
+        "type": "tab",
+        "label": "auth.log を監視",
+        "disabled": false,
+        "info": ""
+    },
+    {
+        "id": "1f53fff3.e8f57",
+        "type": "tail",
+        "z": "43cbaa6a.03f564",
+        "name": "/var/log/auth.log を監視する",
+        "filetype": "text",
+        "split": "[\\r]{0,1}\\n",
+        "filename": "/var/log/auth.log",
+        "inputs": 0,
+        "x": 160,
+        "y": 120,
+        "wires": [
+            [
+                "21fc7675.d85f5a"
+            ]
+        ]
+    },
+    {
+        "id": "9a368e74.707ec",
+        "type": "http request",
+        "z": "43cbaa6a.03f564",
+        "name": "Slack に通知",
+        "method": "POST",
+        "ret": "txt",
+        "url": "https://hooks.slack.com/services/<your web hook url of slack>",
+        "tls": "",
+        "x": 410,
+        "y": 360,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "81b7d80a.241e58",
+        "type": "comment",
+        "z": "43cbaa6a.03f564",
+        "name": "auth.log を監視",
+        "info": "",
+        "x": 120,
+        "y": 60,
+        "wires": []
+    },
+    {
+        "id": "21fc7675.d85f5a",
+        "type": "switch",
+        "z": "43cbaa6a.03f564",
+        "name": "Invalid user のログを抽出する",
+        "property": "payload",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "regex",
+                "v": "Invalid user (.+) from (.+)$",
+                "vt": "str",
+                "case": false
+            }
+        ],
+        "checkall": "true",
+        "outputs": 1,
+        "x": 210,
+        "y": 180,
+        "wires": [
+            [
+                "bdd5bbcd.03ad38"
+            ]
+        ]
+    },
+    {
+        "id": "8d0fa25a.fba87",
+        "type": "function",
+        "z": "43cbaa6a.03f564",
+        "name": "SQL クエリを作成する",
+        "func": "var items = msg.payload;\n\nmsg = {\n        \"topic\": \"INSERT INTO invalid_users (timestamp, user, address_from) VALUES(?,?,?);\",\n        \"payload\" : [items.timestamp, items.user, items.address_from]\n};\n\nreturn msg;\n",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 190,
+        "y": 300,
+        "wires": [
+            [
+                "dcc41ae0.926d08"
+            ]
+        ]
+    },
+    {
+        "id": "dcc41ae0.926d08",
+        "type": "sqlite",
+        "z": "43cbaa6a.03f564",
+        "mydb": "4457a901.83f678",
+        "sql": "",
+        "name": "SQLite へ書き込む",
+        "x": 430,
+        "y": 300,
+        "wires": [
+            [
+                "c8e05f69.20d9f"
+            ]
+        ]
+    },
+    {
+        "id": "87714dad.ee4a3",
+        "type": "template",
+        "z": "43cbaa6a.03f564",
+        "name": "通知メッセージを作成する",
+        "field": "payload",
+        "fieldType": "msg",
+        "format": "json",
+        "syntax": "mustache",
+        "template": "{\n    \"text\": \"Attacked from `{{ payload.address_from }}` as `{{ payload.user }}` !\",\n    \"attachments\": [\n        {\n            \"fallback\": \"Click <http://localhost:1880/ui/|here> to see detail.\",\n            \"actions\": [\n                {\n                    \"type\": \"button\",\n                    \"text\": \"See all  :thinking_face:\",\n                    \"url\": \"http://localhost:1880/ui/\"\n                }\n            ]\n        }\n    ]\n}",
+        "output": "json",
+        "x": 200,
+        "y": 360,
+        "wires": [
+            [
+                "9a368e74.707ec"
+            ]
+        ]
+    },
+    {
+        "id": "bdd5bbcd.03ad38",
+        "type": "function",
+        "z": "43cbaa6a.03f564",
+        "name": "ログを成型する",
+        "func": "var log = msg.payload;\nvar re = /^(\\w{3} \\d+) (\\d+:\\d+:\\d+) .+: Invalid user (.+) from (.+)$/;\nvar values = re.exec(log);\n\nvar tz = Intl.DateTimeFormat().resolvedOptions().timeZone;\nvar datetime = values[1] + \" \" + new Date().getFullYear() + \" \" + values[2] + \" \" + tz;\n\nmsg.payload = {\n    // \"timestamp\": values[1] + \" \" + values[2],\n    \"timestamp\": datetime,\n    // \"timestamp\": Date.parse(datetime),\n    \"user\": values[3],\n    \"address_from\": values[4]\n};\n\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 160,
+        "y": 240,
+        "wires": [
+            [
+                "8d0fa25a.fba87",
+                "87714dad.ee4a3"
+            ]
+        ]
+    },
+    {
+        "id": "c14107f8.0a98c8",
+        "type": "comment",
+        "z": "43cbaa6a.03f564",
+        "name": "SSH 不正アクセス状況を表示",
+        "info": "",
+        "x": 800,
+        "y": 340,
+        "wires": []
+    },
+    {
+        "id": "c8e05f69.20d9f",
+        "type": "link out",
+        "z": "43cbaa6a.03f564",
+        "name": "update-graph",
+        "links": [
+            "e6aeeb32.b3b308",
+            "963a793f.a01008"
+        ],
+        "x": 575,
+        "y": 300,
+        "wires": []
+    },
+    {
+        "id": "963a793f.a01008",
+        "type": "link in",
+        "z": "43cbaa6a.03f564",
+        "name": "update-list",
+        "links": [
+            "c8e05f69.20d9f"
+        ],
+        "x": 695,
+        "y": 400,
+        "wires": [
+            [
+                "dba9ffa0.4d4bc"
+            ]
+        ]
+    },
+    {
+        "id": "9d87f987.1e5938",
+        "type": "sqlite",
+        "z": "43cbaa6a.03f564",
+        "mydb": "4457a901.83f678",
+        "sql": "",
+        "name": "SQLite から読み込む",
+        "x": 820,
+        "y": 460,
+        "wires": [
+            [
+                "ee105150.8ed85"
+            ]
+        ]
+    },
+    {
+        "id": "dba9ffa0.4d4bc",
+        "type": "function",
+        "z": "43cbaa6a.03f564",
+        "name": "SQL クエリを作成する (SELECT)",
+        "func": "\nvar msg = {\n    \"topic\": \"SELECT timestamp, address_from, user FROM invalid_users ORDER BY timestamp DESC LIMIT 20;\"\n};\n\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 880,
+        "y": 400,
+        "wires": [
+            [
+                "9d87f987.1e5938"
+            ]
+        ]
+    },
+    {
+        "id": "ee105150.8ed85",
+        "type": "ui_template",
+        "z": "43cbaa6a.03f564",
+        "group": "7eab8d0c.0024f4",
+        "name": "不正アクセスリスト (最新20件)",
+        "order": 0,
+        "width": "12",
+        "height": "12",
+        "format": "<div>\n    <div layout=\"row\" layout-align=\"center\">\n      <span flex style=\"font-weight: bold;\">時刻</span>\n      <span flex style=\"font-weight: bold;\">アクセス元</span>\n      <span flex style=\"font-weight: bold;\">ログインユーザー</span>\n    </div>\n    <div layout=\"row\" layout-align=\"center\" ng-repeat=\"log in msg.payload\">\n      <span flex>{{ log.timestamp }}</span>\n      <span flex>{{ log.address_from }}</span>\n      <span flex>{{ log.user }}</span>\n    </div>\n</div>",
+        "storeOutMessages": true,
+        "fwdInMessages": true,
+        "templateScope": "local",
+        "x": 1090,
+        "y": 460,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "91f3b549.020ef8",
+        "type": "comment",
+        "z": "43cbaa6a.03f564",
+        "name": "SSH 不正アクセス件数ランキングを表示",
+        "info": "",
+        "x": 840,
+        "y": 60,
+        "wires": []
+    },
+    {
+        "id": "e6aeeb32.b3b308",
+        "type": "link in",
+        "z": "43cbaa6a.03f564",
+        "name": "update-ranking",
+        "links": [
+            "c8e05f69.20d9f"
+        ],
+        "x": 695,
+        "y": 120,
+        "wires": [
+            [
+                "1a6e617a.aee87f"
+            ]
+        ]
+    },
+    {
+        "id": "4024726f.b20a8c",
+        "type": "sqlite",
+        "z": "43cbaa6a.03f564",
+        "mydb": "4457a901.83f678",
+        "sql": "",
+        "name": "SQLite から読み込む",
+        "x": 820,
+        "y": 180,
+        "wires": [
+            [
+                "b9e203c7.9699e",
+                "fc2013df.b133a"
+            ]
+        ]
+    },
+    {
+        "id": "1a6e617a.aee87f",
+        "type": "function",
+        "z": "43cbaa6a.03f564",
+        "name": "SQL クエリを作成する (SELECT)",
+        "func": "\nvar msg = {\n    \"topic\": \"SELECT user, count(timestamp) as count FROM invalid_users GROUP BY user ORDER BY count DESC LIMIT 10;\"\n};\n\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 880,
+        "y": 120,
+        "wires": [
+            [
+                "4024726f.b20a8c"
+            ]
+        ]
+    },
+    {
+        "id": "b9e203c7.9699e",
+        "type": "ui_template",
+        "z": "43cbaa6a.03f564",
+        "group": "59b7d340.2c674c",
+        "name": "SSH 不正アクセスユーザー名ランキング",
+        "order": 2,
+        "width": "12",
+        "height": "5",
+        "format": "<div layout=\"row\" layout-align=\"center\">\n  <span flex style=\"font-weight: bold;\">ログインユーザー名</span>\n  <span flex style=\"font-weight: bold;\">件数</span>\n</div>\n<div layout=\"row\" layout-align=\"center\" ng-repeat=\"log in msg.payload\">\n  <span flex>{{ log.user }}</span>\n  <span flex>{{ log.count }}</span>\n</div>",
+        "storeOutMessages": true,
+        "fwdInMessages": true,
+        "templateScope": "local",
+        "x": 1120,
+        "y": 180,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "aa14b013.86f1d",
+        "type": "ui_chart",
+        "z": "43cbaa6a.03f564",
+        "name": "",
+        "group": "59b7d340.2c674c",
+        "order": 1,
+        "width": "12",
+        "height": "7",
+        "label": "不正アクセスユーザー名分布",
+        "chartType": "pie",
+        "legend": "true",
+        "xformat": "HH:mm:ss",
+        "interpolate": "linear",
+        "nodata": "",
+        "dot": false,
+        "ymin": "",
+        "ymax": "",
+        "removeOlder": 1,
+        "removeOlderPoints": "",
+        "removeOlderUnit": "3600",
+        "cutout": 0,
+        "useOneColor": false,
+        "colors": [
+            "#1f77b4",
+            "#aec7e8",
+            "#ff7f0e",
+            "#2ca02c",
+            "#98df8a",
+            "#d62728",
+            "#ff9896",
+            "#9467bd",
+            "#c5b0d5"
+        ],
+        "useOldStyle": false,
+        "outputs": 2,
+        "x": 1080,
+        "y": 240,
+        "wires": [
+            [],
+            []
+        ]
+    },
+    {
+        "id": "fc2013df.b133a",
+        "type": "function",
+        "z": "43cbaa6a.03f564",
+        "name": "チャート用に成型する",
+        "func": "var payload = {};\nvar labels = [];\nvar data = [];\n\nfor (var key in msg.payload) {\n    labels.push(msg.payload[key].user);\n    data.push(msg.payload[key].count);\n}\n\npayload.labels = labels;\npayload.data = [data];\npayload.series = [\"Users\"];\n\nreturn {payload:[payload]};",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 820,
+        "y": 240,
+        "wires": [
+            [
+                "aa14b013.86f1d"
+            ]
+        ]
+    },
+    {
+        "id": "6acc5a7a.86d8c4",
+        "type": "inject",
+        "z": "43cbaa6a.03f564",
+        "name": "Node-RED 更新時トリガー",
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "repeat": "",
+        "crontab": "",
+        "once": true,
+        "x": 440,
+        "y": 240,
+        "wires": [
+            [
+                "c8e05f69.20d9f"
+            ]
+        ]
+    },
+    {
+        "id": "4457a901.83f678",
+        "type": "sqlitedb",
+        "z": "",
+        "db": "/usr/local/etc/sqlite3/monitor-logs.db",
+        "mode": "RWC"
+    },
+    {
+        "id": "7eab8d0c.0024f4",
+        "type": "ui_group",
+        "z": "",
+        "name": "不正アクセスリスト (最新20件)",
+        "tab": "bf607b31.390cb8",
+        "order": 2,
+        "disp": true,
+        "width": "12"
+    },
+    {
+        "id": "59b7d340.2c674c",
+        "type": "ui_group",
+        "z": "",
+        "name": "SSH 不正アクセスユーザー名ランキング",
+        "tab": "bf607b31.390cb8",
+        "order": 1,
+        "disp": true,
+        "width": "12"
+    },
+    {
+        "id": "bf607b31.390cb8",
+        "type": "ui_tab",
+        "z": "",
+        "name": "SSH 不正アクセス監視",
+        "icon": "dashboard"
+    }
+]
